@@ -18,6 +18,9 @@ name = "zed"
 path = "src/main.rs"
 
 [dependencies]
+dotenvy = "*"
+convex.workspace = true
+repo_name.workspace = true
 acp_tools.workspace = true
 activity_indicator.workspace = true
 agent_settings.workspace = true

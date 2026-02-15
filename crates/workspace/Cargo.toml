@@ -26,6 +26,11 @@ test-support = [
 ]
 
 [dependencies]
+tokio = "*"
+gpui_tokio.workspace = true
+convex.workspace = true
+maplit.workspace = true
+repo_name.workspace = true
 any_vec.workspace = true
 anyhow.workspace = true
 async-recursion.workspace = true

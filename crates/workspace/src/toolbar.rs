@@ -1,8 +1,11 @@
 use crate::ItemHandle;
+use convex::ConvexClient;
 use gpui::{
     AnyView, App, Context, Entity, EntityId, EventEmitter, KeyContext, ParentElement as _, Render,
     Styled, Window,
 };
+use gpui_tokio::Tokio;
+use repo_name::RepoName;
 use ui::prelude::*;
 use ui::{h_flex, v_flex};
 
@@ -215,6 +218,25 @@ impl Toolbar {
             .map(|item| !item.show_toolbar(cx))
             .unwrap_or(false);
 
+        let Some(active_item) = self.active_item.as_ref() else {
+            return;
+        };
+        let Some(segments) = active_item.as_ref().breadcrumbs(cx.theme(), cx) else {
+            return;
+        };
+        let absolute_file_name = String::from(active_item.suggested_filename(cx));
+        let repo_name = cx.global::<RepoName>().0.clone();
+
+        let mut class_name = String::new();
+        let mut function_name = String::new();
+        if segments.len() == 2 {
+            function_name = String::from(segments[1].text.clone());
+        }
+        if segments.len() == 3 {
+            function_name = String::from(segments[2].text.clone());
+            class_name = String::from(segments[1].text.clone());
+        }
+
         for (toolbar_item, current_location) in self.items.iter_mut() {
             let new_location = toolbar_item.set_active_pane_item(item, window, cx);
             if new_location != *current_location {
@@ -222,6 +244,18 @@ impl Toolbar {
                 cx.notify();
             }
         }
+        let client = cx.global::<ConvexClient>().clone();
+        Tokio::spawn(cx, async move {
+            let _ = client
+                .update_current_file(
+                    absolute_file_name.clone(),
+                    function_name,
+                    class_name,
+                    repo_name,
+                )
+                .await;
+        })
+        .detach();
     }
 
     pub fn focus_changed(&mut self, focused: bool, window: &mut Window, cx: &mut Context<Self>) {

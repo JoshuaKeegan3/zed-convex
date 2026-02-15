@@ -2,6 +2,7 @@ use anyhow::{Context as _, bail};
 use futures::{FutureExt, StreamExt as _, channel::mpsc, future::Shared};
 use language::Buffer;
 use remote::RemoteClient;
+use repo_name::RepoName;
 use rpc::proto::{self, REMOTE_SERVER_PROJECT_ID};
 use std::{collections::VecDeque, path::Path, sync::Arc};
 use task::{Shell, shell_to_proto};
@@ -239,6 +240,30 @@ impl ProjectEnvironment {
                             .get("PATH")
                             .map(|path| path.as_str())
                             .unwrap_or_default();
+                        // Run `git remote show origin` in the specified directory
+                        let output = std::process::Command::new("git")
+                            .arg("remote")
+                            .arg("show")
+                            .arg("origin")
+                            .current_dir(abs_path.as_ref())
+                            .output()
+                            .expect("failed to execute git command");
+
+                        // Convert the output to a string
+                        let output_str =
+                            String::from_utf8(output.stdout).expect("failed to convert to string");
+
+                        // Find the "Fetch URL" and extract the URL
+                        let repo_name = output_str
+                            .lines()
+                            .find(|line| line.trim().starts_with("Fetch URL:"))
+                            .and_then(|line| line.split_whitespace().last())
+                            .unwrap_or("")
+                            .to_string();
+                        this.update(cx, |_, cx| {
+                            cx.set_global::<RepoName>(RepoName(repo_name));
+                        })
+                        .log_err();
                         log::debug!(
                             "using project environment variables shell launched in {:?}. PATH={:?}",
                             abs_path,

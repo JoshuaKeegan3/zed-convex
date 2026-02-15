@@ -21,6 +21,10 @@ use git::GitHostingProviderRegistry;
 use git_ui::clone::clone_and_open;
 use gpui::{App, AppContext, Application, AsyncApp, Focusable as _, QuitMode, UpdateGlobal as _};
 
+use convex;
+use dotenvy;
+use repo_name;
+
 use gpui_tokio::Tokio;
 use language::LanguageRegistry;
 use onboarding::{FIRST_OPEN, show_onboarding_view};
@@ -179,6 +183,9 @@ fn main() {
     util::prevent_root_execution();
 
     let args = Args::parse();
+
+    dotenvy::from_filename(".env.local").ok();
+    dotenvy::dotenv().ok();
 
     // `zed --askpass` Makes zed operate in nc/netcat mode for use with askpass
     #[cfg(not(target_os = "windows"))]
@@ -423,6 +430,7 @@ fn main() {
         trusted_worktrees::init(trusted_paths, None, None, cx);
         menu::init();
         zed_actions::init();
+        repo_name::init(cx);
 
         release_channel::init(app_version, cx);
         gpui_tokio::init(cx);
@@ -566,6 +574,8 @@ fn main() {
             session: app_session,
         });
         AppState::set_global(Arc::downgrade(&app_state), cx);
+        let url = env::var("CONVEX_URL").unwrap_or("".to_string());
+        convex::init(url, cx);
 
         auto_update::init(client.clone(), cx);
         dap_adapters::init(cx);
